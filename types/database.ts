@@ -351,3 +351,36 @@ export interface User {
   created_at: Timestamp;
 }
 
+// ============================================
+// Lucky Draw Events
+// ============================================
+
+export interface LuckyDrawEvent {
+  id: UUID;
+  title: string;
+  description: string | null;
+  product_image_url: string | null;
+  end_time: Timestamp;
+  target_url: string;
+  is_active: boolean;
+  created_at: Timestamp;
+}
+
+export interface LuckyDrawEventInsert {
+  title: string;
+  description?: string | null;
+  product_image_url?: string | null;
+  end_time: string;
+  target_url?: string;
+  is_active?: boolean;
+}
+
+export interface LuckyDrawEventUpdate {
+  title?: string;
+  description?: string | null;
+  product_image_url?: string | null;
+  end_time?: string;
+  target_url?: string;
+  is_active?: boolean;
+}
+

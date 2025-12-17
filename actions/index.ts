@@ -40,3 +40,9 @@ export {
   isInWishlist,
 } from './wishlists';
 
+// 럭키드로우 관련
+export {
+  getActiveLuckyDrawEvent,
+  getAllLuckyDrawEvents,
+} from './lucky-draw';
+

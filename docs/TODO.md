@@ -175,6 +175,35 @@
 
 ---
 
+## Phase 8: 럭키드로우 이벤트 섹션 ✅
+
+### 데이터베이스
+- [x] lucky_draw_events 테이블 마이그레이션
+
+### 타입 및 API
+- [x] types/database.ts - LuckyDrawEvent 인터페이스
+- [x] actions/lucky-draw.ts - getActiveLuckyDrawEvent 함수
+
+### 컴포넌트
+- [x] components/home/lucky-draw-section.tsx - 럭키드로우 섹션 (실시간 타이머)
+- [x] public/images/hourglass.svg - 모래시계 일러스트
+- [x] public/images/lucky-draw-bg.png - 대항해시대 무역선 배경
+
+### 페이지
+- [x] app/events/lucky-draw/page.tsx - 럭키드로우 상세 페이지
+
+### 레이아웃
+- [x] app/page.tsx - 신상품 섹션 아래에 럭키드로우 섹션 배치
+
+### 디자인
+- [x] 대항해시대 지도/종이 질감 배경
+- [x] 웅장한 무역선 이미지
+- [x] 실시간 카운트다운 타이머 (100분의1초 포함)
+- [x] 모래시계 일러스트
+- [x] 바로가기 버튼 및 클릭 가능한 상품 이미지
+
+---
+
 ## 다음 단계 (MVP 이후)
 
 - [ ] SNS 링크 실제 URL 연결

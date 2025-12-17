@@ -15,11 +15,13 @@
 import Link from 'next/link';
 import { getFeaturedProducts, getNewProducts } from '@/actions/products';
 import { getCategories } from '@/actions/categories';
+import { getActiveLuckyDrawEvent } from '@/actions/lucky-draw';
 import { ProductCard } from '@/components/product-card';
 import { CategoryCard } from '@/components/category-card';
 import { HeroHeader } from '@/components/header/hero-header';
 import { CategoryNavbar } from '@/components/header/category-navbar';
 import { TodaysNewSection } from '@/components/home/todays-new-section';
+import { LuckyDrawSection } from '@/components/home/lucky-draw-section';
 import { ArrowRight, Sparkles, Globe, MessageSquare } from 'lucide-react';
 
 export default async function HomePage() {
@@ -28,12 +30,14 @@ export default async function HomePage() {
   let featuredProducts: Awaited<ReturnType<typeof getFeaturedProducts>> = [];
   let newProducts: Awaited<ReturnType<typeof getNewProducts>> = [];
   let categories: Awaited<ReturnType<typeof getCategories>> = [];
+  let luckyDrawEvent: Awaited<ReturnType<typeof getActiveLuckyDrawEvent>> = null;
 
   try {
-    [featuredProducts, newProducts, categories] = await Promise.all([
+    [featuredProducts, newProducts, categories, luckyDrawEvent] = await Promise.all([
       getFeaturedProducts(8),
       getNewProducts(4),
       getCategories(),
+      getActiveLuckyDrawEvent(),
     ]);
   } catch (error) {
     console.error('데이터 로드 실패:', error);
@@ -53,6 +57,9 @@ export default async function HomePage() {
 
       {/* Today's New Section - 오늘의 신상품 */}
       <TodaysNewSection products={newProducts} />
+
+      {/* Lucky Draw Section - 럭키드로우 이벤트 */}
+      <LuckyDrawSection event={luckyDrawEvent} />
 
       {/* Features Section */}
       <section className="py-16 bg-gray-50">
