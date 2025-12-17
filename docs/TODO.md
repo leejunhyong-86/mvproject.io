@@ -121,6 +121,33 @@
 
 ---
 
+## Phase 6: 카테고리 네비게이션 바 ✅
+
+### 네비게이션 바 컴포넌트
+- [x] constants/navigation.ts - 카테고리 데이터 및 타입 정의
+- [x] components/header/home-button.tsx - 닻 아이콘 홈 버튼
+- [x] components/header/hamburger-menu.tsx - 햄버거 메뉴 및 전체 카테고리 드롭다운
+- [x] components/header/category-navbar.tsx - 메인 네비게이션 바 컨테이너
+
+### 카테고리 구조 (11개)
+- 프리오더, 체험단 모집, 신상품
+- 전자기기, 뷰티, 패션, 푸드
+- 주방용품, 스포츠, 유아용품, 홈인테리어
+
+### 레이아웃 적용
+- [x] 홈페이지에 CategoryNavbar 적용 (HeroHeader 아래)
+- [x] 반응형 디자인 (데스크탑/태블릿/모바일)
+
+### 기능
+- [x] 닻 아이콘 홈 버튼 (항구 컨셉)
+- [x] 햄버거 메뉴로 전체 카테고리 펼치기
+- [x] 세부 카테고리 표시
+- [x] 외부 클릭 시 드롭다운 닫기
+- [x] ESC 키로 드롭다운 닫기
+- [x] 스티키 포지션 (스크롤 시 상단 고정)
+
+---
+
 ## 다음 단계 (MVP 이후)
 
 - [ ] SNS 링크 실제 URL 연결

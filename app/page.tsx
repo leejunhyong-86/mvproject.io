@@ -18,6 +18,7 @@ import { getCategories } from '@/actions/categories';
 import { ProductCard } from '@/components/product-card';
 import { CategoryCard } from '@/components/category-card';
 import { HeroHeader } from '@/components/header/hero-header';
+import { CategoryNavbar } from '@/components/header/category-navbar';
 import { ArrowRight, Sparkles, Globe, MessageSquare } from 'lucide-react';
 
 export default async function HomePage() {
@@ -43,6 +44,9 @@ export default async function HomePage() {
         youtubeUrl="#"
         instagramUrl="#"
       />
+
+      {/* Category Navbar - 카테고리 네비게이션 바 */}
+      <CategoryNavbar />
 
       {/* Features Section */}
       <section className="py-16 bg-gray-50">
