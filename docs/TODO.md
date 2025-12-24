@@ -269,6 +269,8 @@
 ### 크롤러 도구 (Monorepo)
 - [x] tools/kickstarter-crawler - 킥스타터 프로젝트 크롤러
 - [x] tools/wadiz-crawler - 와디즈 프로젝트 크롤러
+- [x] tools/amazon-crawler - 아마존 베스트셀러 크롤러
+- [x] tools/shopee-crawler - 쇼피 태국 크롤러 (⚠️ 봇 탐지로 제한됨)
 - [x] Puppeteer 기반 헤드리스 브라우저 크롤링
 - [x] Cloudflare 봇 탐지 우회 로직
 - [x] 최소 리워드 금액 추출 ($5/1,000원 이하 제외)
@@ -277,6 +279,7 @@
 ### 영상 URL 크롤링
 - [x] 킥스타터 프로젝트 영상 URL 추출
 - [x] 와디즈 프로젝트 영상 URL 추출
+- [x] 아마존/쇼피 상품 영상 URL 추출
 - [x] ProductCard 호버 시 영상 자동 재생 (기존 구현)
 
 ---

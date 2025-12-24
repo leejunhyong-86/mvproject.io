@@ -22,6 +22,10 @@ const nextConfig: NextConfig = {
       { hostname: "images-eu.ssl-images-amazon.com" },
       { hostname: "m.media-amazon.com" },
       { hostname: "images-amazon.com" },
+      // Shopee Thailand 크롤링 이미지
+      { hostname: "cf.shopee.co.th" },
+      { hostname: "down-th.img.susercontent.com" },
+      { hostname: "f.shopee.co.th" },
     ],
   },
 };
