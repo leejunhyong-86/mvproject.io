@@ -362,11 +362,79 @@ class WadizCrawler {
             }
           }
 
+          // ============================================
+          // 영상 URL 추출
+          // ============================================
+          var videoUrl = null;
+
+          // 방법 1: og:video 메타 태그에서 추출
+          var ogVideo = document.querySelector('meta[property="og:video"], meta[property="og:video:url"], meta[property="og:video:secure_url"]');
+          if (ogVideo) {
+            videoUrl = ogVideo.getAttribute('content');
+          }
+
+          // 방법 2: video 태그에서 직접 추출
+          if (!videoUrl) {
+            var videoEl = document.querySelector('video source[src], video[src]');
+            if (videoEl) {
+              videoUrl = videoEl.getAttribute('src');
+              if (!videoUrl) {
+                var sourceEl = videoEl.querySelector('source');
+                if (sourceEl) {
+                  videoUrl = sourceEl.getAttribute('src');
+                }
+              }
+            }
+          }
+
+          // 방법 3: 와디즈 비디오 컨테이너에서 추출
+          if (!videoUrl) {
+            var wadizVideo = document.querySelector('[class*="video"] video, .video-container video, .project-video video');
+            if (wadizVideo) {
+              videoUrl = wadizVideo.getAttribute('src');
+            }
+          }
+
+          // 방법 4: iframe에서 YouTube/Vimeo URL 추출
+          if (!videoUrl) {
+            var iframe = document.querySelector('iframe[src*="youtube"], iframe[src*="vimeo"], iframe[src*="wadiz"]');
+            if (iframe) {
+              var iframeSrc = iframe.getAttribute('src');
+              if (iframeSrc) {
+                // YouTube embed URL을 일반 URL로 변환
+                if (iframeSrc.includes('youtube.com/embed/')) {
+                  var videoId = iframeSrc.split('embed/')[1]?.split('?')[0];
+                  if (videoId) {
+                    videoUrl = 'https://www.youtube.com/watch?v=' + videoId;
+                  }
+                } else if (iframeSrc.includes('player.vimeo.com/video/')) {
+                  var vimeoId = iframeSrc.split('video/')[1]?.split('?')[0];
+                  if (vimeoId) {
+                    videoUrl = 'https://vimeo.com/' + vimeoId;
+                  }
+                } else {
+                  videoUrl = iframeSrc;
+                }
+              }
+            }
+          }
+
+          // 방법 5: data 속성에서 영상 URL 추출
+          if (!videoUrl) {
+            var videoContainer = document.querySelector('[data-video-url], [data-video], [data-src]');
+            if (videoContainer) {
+              videoUrl = videoContainer.getAttribute('data-video-url') || 
+                        videoContainer.getAttribute('data-video') || 
+                        videoContainer.getAttribute('data-src');
+            }
+          }
+
           return {
             title: title,
             description: description,
             summary: description.substring(0, 200),
             thumbnailUrl: thumbnailUrl,
+            videoUrl: videoUrl,
             targetAmount: targetAmount,
             totalAmount: totalAmount,
             achievementRate: achievementRate,
@@ -384,6 +452,7 @@ class WadizCrawler {
         description: string;
         summary: string;
         thumbnailUrl: string;
+        videoUrl: string | null;
         targetAmount: string;
         totalAmount: string;
         achievementRate: string;
@@ -407,7 +476,7 @@ class WadizCrawler {
         description: projectData.description,
         summary: projectData.summary,
         thumbnailUrl: projectData.thumbnailUrl,
-        videoUrl: null,
+        videoUrl: projectData.videoUrl,
 
         targetAmount: parseInt(projectData.targetAmount) || 0,
         totalAmount: parseInt(projectData.totalAmount) || 0,
@@ -446,6 +515,9 @@ class WadizCrawler {
       console.log(`      👥 ${project.supporterCount.toLocaleString()}명 서포터`);
       if (project.minRewardAmount) {
         console.log(`      🎁 최소 리워드: ${project.minRewardAmount.toLocaleString()}원`);
+      }
+      if (project.videoUrl) {
+        console.log(`      🎬 영상 URL: ${project.videoUrl.substring(0, 50)}...`);
       }
       console.log('');
 

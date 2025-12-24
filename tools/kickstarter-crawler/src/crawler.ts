@@ -409,12 +409,86 @@ class KickstarterCrawler {
             }
           }
 
+          // ============================================
+          // 영상 URL 추출
+          // ============================================
+          var videoUrl = null;
+
+          // 방법 1: og:video 메타 태그에서 추출
+          var ogVideo = document.querySelector('meta[property="og:video"], meta[property="og:video:url"], meta[property="og:video:secure_url"]');
+          if (ogVideo) {
+            videoUrl = ogVideo.getAttribute('content');
+          }
+
+          // 방법 2: video 태그에서 직접 추출
+          if (!videoUrl) {
+            var videoEl = document.querySelector('video source[src], video[src]');
+            if (videoEl) {
+              videoUrl = videoEl.getAttribute('src');
+              if (!videoUrl) {
+                var sourceEl = videoEl.querySelector('source');
+                if (sourceEl) {
+                  videoUrl = sourceEl.getAttribute('src');
+                }
+              }
+            }
+          }
+
+          // 방법 3: data-video-url 속성에서 추출
+          if (!videoUrl) {
+            var videoContainer = document.querySelector('[data-video-url], [data-src-high], [data-src]');
+            if (videoContainer) {
+              videoUrl = videoContainer.getAttribute('data-video-url') || 
+                        videoContainer.getAttribute('data-src-high') || 
+                        videoContainer.getAttribute('data-src');
+            }
+          }
+
+          // 방법 4: iframe에서 YouTube/Vimeo URL 추출
+          if (!videoUrl) {
+            var iframe = document.querySelector('iframe[src*="youtube"], iframe[src*="vimeo"], iframe[src*="kickstarter"]');
+            if (iframe) {
+              var iframeSrc = iframe.getAttribute('src');
+              if (iframeSrc) {
+                // YouTube embed URL을 일반 URL로 변환
+                if (iframeSrc.includes('youtube.com/embed/')) {
+                  var videoId = iframeSrc.split('embed/')[1]?.split('?')[0];
+                  if (videoId) {
+                    videoUrl = 'https://www.youtube.com/watch?v=' + videoId;
+                  }
+                } else if (iframeSrc.includes('player.vimeo.com/video/')) {
+                  var vimeoId = iframeSrc.split('video/')[1]?.split('?')[0];
+                  if (vimeoId) {
+                    videoUrl = 'https://vimeo.com/' + vimeoId;
+                  }
+                } else {
+                  videoUrl = iframeSrc;
+                }
+              }
+            }
+          }
+
+          // 방법 5: JSON-LD 스크립트에서 영상 URL 추출
+          if (!videoUrl) {
+            var jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+            jsonLdScripts.forEach(function(script) {
+              try {
+                var data = JSON.parse(script.textContent || '');
+                if (data.video || data.videoObject) {
+                  var video = data.video || data.videoObject;
+                  if (Array.isArray(video)) video = video[0];
+                  videoUrl = video.contentUrl || video.embedUrl || video.url;
+                }
+              } catch (e) {}
+            });
+          }
+
           return {
             title: title,
             blurb: ogDescription || '',
             description: ogDescription || '',
             thumbnailUrl: ogImage || '',
-            videoUrl: null,
+            videoUrl: videoUrl,
             pledgedText: pledgedText,
             goalText: goalText,
             backersText: backersText,
@@ -504,6 +578,9 @@ class KickstarterCrawler {
       console.log(`      👥 ${project.backersCount.toLocaleString()}명 후원`);
       if (project.minRewardAmount) {
         console.log(`      🎁 최소 리워드: $${project.minRewardAmount}`);
+      }
+      if (project.videoUrl) {
+        console.log(`      🎬 영상 URL: ${project.videoUrl.substring(0, 50)}...`);
       }
       console.log('');
 
