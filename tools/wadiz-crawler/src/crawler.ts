@@ -2,22 +2,33 @@
  * @file src/crawler.ts
  * @description 와디즈 크라우드펀딩 프로젝트 크롤러
  *
- * 사용법: pnpm crawl
- *
- * 이 스크립트는 와디즈에서 프로젝트 데이터를 크롤링하여
- * Supabase 데이터베이스에 저장합니다.
+ * 와디즈에서 다양한 모드로 프로젝트를 크롤링하여 Supabase에 저장합니다.
  *
  * 주요 기능:
- * 1. 프로젝트 목록 페이지 크롤링
- * 2. 프로젝트 상세 정보 추출
- * 3. 리워드 정보 추출
- * 4. Supabase products 테이블에 저장
+ * 1. 인기순 프로젝트 크롤링
+ * 2. 모인금액순 프로젝트 크롤링
+ * 3. 최신순 프로젝트 크롤링
+ * 4. 마감임박순 프로젝트 크롤링
+ * 5. 키워드 검색 크롤링
+ * 6. 특정 카테고리 크롤링
+ * 
+ * 크롤링 모드 (CRAWL_MODE 환경변수):
+ * - popular: 인기순 (기본값)
+ * - amount: 모인금액순
+ * - recent: 최신순
+ * - closing: 마감임박순
+ * - search: 키워드 검색 (SEARCH_KEYWORD 필요)
+ *
+ * 사용법:
+ * - pnpm crawl (기본 인기순 크롤링)
+ * - CRAWL_MODE=amount pnpm crawl
+ * - CRAWL_MODE=search SEARCH_KEYWORD="전자기기" pnpm crawl
  */
 
 import 'dotenv/config';
 import puppeteer, { Browser, Page } from 'puppeteer';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { WadizProject, WadizReward, CrawlConfig, ProductInsert } from './types.js';
+import type { WadizProject, CrawlConfig, ProductInsert } from './types.js';
 
 // ============================================
 // 환경 변수 설정
@@ -37,15 +48,47 @@ if (!supabaseUrl || !supabaseServiceKey) {
 const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
 // ============================================
+// 크롤링 모드 타입
+// ============================================
+
+type CrawlMode = 'popular' | 'amount' | 'recent' | 'closing' | 'search';
+type WadizCategory = 'tech' | 'fashion' | 'beauty' | 'food' | 'home' | 'design' | 'all';
+
+// 크롤링 모드 및 옵션
+const CRAWL_MODE: CrawlMode = (process.env.CRAWL_MODE as CrawlMode) || 'popular';
+const SEARCH_KEYWORD = process.env.SEARCH_KEYWORD || '';
+const CATEGORY: WadizCategory = (process.env.CATEGORY as WadizCategory) || 'all';
+
+// ============================================
 // 크롤링 설정
 // ============================================
 
 const CONFIG: CrawlConfig = {
-  headless: true,       // false: 브라우저 창 표시 (디버깅용)
+  headless: process.env.HEADLESS !== 'false',
   timeout: 60000,       // 60초 타임아웃
   delay: 2000,          // 요청 간 2초 대기 (차단 방지)
   retryCount: 3,        // 실패 시 재시도 횟수
-  maxProjects: 10,      // 한 번에 크롤링할 최대 프로젝트 수
+  maxProjects: parseInt(process.env.MAX_PRODUCTS || '10'),
+};
+
+// 카테고리 ID 매핑
+const CATEGORY_IDS: Record<WadizCategory, string> = {
+  tech: '1',       // 테크·가전
+  fashion: '2',    // 패션·잡화
+  beauty: '3',     // 뷰티
+  food: '4',       // 푸드
+  home: '5',       // 홈리빙
+  design: '6',     // 디자인소품
+  all: '',
+};
+
+// 정렬 옵션 매핑
+const SORT_OPTIONS: Record<CrawlMode, string> = {
+  popular: 'support',   // 인기순
+  amount: 'amount',     // 모인금액순
+  recent: 'recent',     // 최신순
+  closing: 'closing',   // 마감임박순
+  search: 'support',    // 검색 시 기본 인기순
 };
 
 // ============================================
@@ -66,12 +109,6 @@ function createSlug(title: string): string {
 
 function parseAmount(text: string): number {
   // "1,234,567원" -> 1234567
-  const cleaned = text.replace(/[^0-9]/g, '');
-  return parseInt(cleaned) || 0;
-}
-
-function parsePercentage(text: string): number {
-  // "1,234%" -> 1234
   const cleaned = text.replace(/[^0-9]/g, '');
   return parseInt(cleaned) || 0;
 }
@@ -143,33 +180,41 @@ class WadizCrawler {
   // 펀딩 목록 페이지에서 프로젝트 URL 가져오기
   // ============================================
 
-  async getProjectUrls(
-    category?: string,
-    sort: 'popular' | 'amount' | 'recent' | 'closing' = 'popular'
-  ): Promise<string[]> {
+  async getProjectUrls(): Promise<string[]> {
     if (!this.page) throw new Error('브라우저가 초기화되지 않았습니다.');
 
-    // 와디즈 펀딩 목록 URL
-    // https://www.wadiz.kr/web/wfunding/main?order=support
-    let url = 'https://www.wadiz.kr/web/wreward/main';
-    const params = new URLSearchParams();
-
-    // 정렬 옵션
-    const sortMap: Record<string, string> = {
-      popular: 'support',   // 인기순
-      amount: 'amount',     // 모인금액순
-      recent: 'recent',     // 최신순
-      closing: 'closing',   // 마감임박순
-    };
-    params.append('order', sortMap[sort]);
-
-    if (category) {
-      params.append('category', category);
+    let url: string;
+    
+    if (CRAWL_MODE === 'search' && SEARCH_KEYWORD) {
+      // 검색 모드
+      const encodedKeyword = encodeURIComponent(SEARCH_KEYWORD);
+      url = `https://www.wadiz.kr/web/wreward/main?keyword=${encodedKeyword}&order=support`;
+      console.log(`📦 와디즈 검색: "${SEARCH_KEYWORD}" 크롤링 시작...`);
+    } else {
+      // 일반 모드
+      url = 'https://www.wadiz.kr/web/wreward/main';
+      const params = new URLSearchParams();
+      
+      params.append('order', SORT_OPTIONS[CRAWL_MODE]);
+      
+      if (CATEGORY !== 'all' && CATEGORY_IDS[CATEGORY]) {
+        params.append('category', CATEGORY_IDS[CATEGORY]);
+      }
+      
+      url += '?' + params.toString();
+      
+      const modeLabel = {
+        popular: '인기순',
+        amount: '모인금액순',
+        recent: '최신순',
+        closing: '마감임박순',
+        search: '검색',
+      }[CRAWL_MODE];
+      
+      console.log(`📦 와디즈 ${modeLabel} 크롤링 시작...`);
     }
 
-    url += '?' + params.toString();
-
-    console.log(`📂 프로젝트 목록 페이지: ${url}\n`);
+    console.log(`   🔗 접속 중: ${url.substring(0, 60)}...\n`);
 
     try {
       await this.page.goto(url, {
@@ -621,6 +666,17 @@ async function main() {
   console.log('🎯 와디즈 크라우드펀딩 크롤러');
   console.log('═'.repeat(60));
   console.log('');
+  console.log(`📋 설정:`);
+  console.log(`   - 크롤링 모드: ${CRAWL_MODE}`);
+  if (CRAWL_MODE === 'search') {
+    console.log(`   - 검색 키워드: ${SEARCH_KEYWORD}`);
+  }
+  if (CATEGORY !== 'all') {
+    console.log(`   - 카테고리: ${CATEGORY}`);
+  }
+  console.log(`   - 최대 프로젝트 수: ${CONFIG.maxProjects}`);
+  console.log(`   - Headless 모드: ${CONFIG.headless}`);
+  console.log('');
 
   const crawler = new WadizCrawler();
 
@@ -648,12 +704,10 @@ async function main() {
       }
     } else {
       // ============================================
-      // 방법 2: 인기 프로젝트 자동 수집
+      // 방법 2: 모드에 따른 프로젝트 자동 수집
       // ============================================
 
-      console.log('\n📂 인기 프로젝트 자동 수집 모드\n');
-
-      const projectUrls = await crawler.getProjectUrls(undefined, 'popular');
+      const projectUrls = await crawler.getProjectUrls();
 
       let savedCount = 0;
       for (const url of projectUrls) {
@@ -681,4 +735,3 @@ async function main() {
 
 // 실행
 main();
-

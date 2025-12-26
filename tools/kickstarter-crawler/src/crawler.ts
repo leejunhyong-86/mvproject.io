@@ -2,22 +2,33 @@
  * @file src/crawler.ts
  * @description Kickstarter 프로젝트 크롤러
  *
- * 사용법: pnpm crawl
- *
- * 이 스크립트는 Kickstarter에서 프로젝트 데이터를 크롤링하여
- * Supabase 데이터베이스에 저장합니다.
+ * Kickstarter에서 다양한 모드로 프로젝트를 크롤링하여 Supabase에 저장합니다.
  *
  * 주요 기능:
- * 1. 프로젝트 목록 페이지 크롤링
- * 2. 프로젝트 상세 정보 추출
- * 3. 리워드 티어 정보 추출
- * 4. Supabase products 테이블에 저장
+ * 1. 인기 프로젝트 크롤링
+ * 2. 최신 프로젝트 크롤링
+ * 3. 마감 임박 프로젝트 크롤링
+ * 4. 최다 모금 프로젝트 크롤링
+ * 5. 키워드 검색 크롤링
+ * 6. 특정 카테고리 크롤링
+ * 
+ * 크롤링 모드 (CRAWL_MODE 환경변수):
+ * - popularity: 인기순 (기본값)
+ * - newest: 최신순
+ * - end_date: 마감 임박순
+ * - most_funded: 최다 모금순
+ * - search: 키워드 검색 (SEARCH_KEYWORD 필요)
+ *
+ * 사용법:
+ * - pnpm crawl (기본 인기순 크롤링)
+ * - CRAWL_MODE=newest pnpm crawl
+ * - CRAWL_MODE=search SEARCH_KEYWORD="smart watch" pnpm crawl
  */
 
 import 'dotenv/config';
 import puppeteer, { Browser, Page } from 'puppeteer';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { KickstarterProject, RewardTier, CrawlConfig, ProductInsert } from './types.js';
+import type { KickstarterProject, CrawlConfig, ProductInsert } from './types.js';
 
 // ============================================
 // 환경 변수 설정
@@ -37,15 +48,38 @@ if (!supabaseUrl || !supabaseServiceKey) {
 const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
 // ============================================
+// 크롤링 모드 타입
+// ============================================
+
+type CrawlMode = 'popularity' | 'newest' | 'end_date' | 'most_funded' | 'magic' | 'search';
+type KickstarterCategory = 'technology' | 'design' | 'games' | 'art' | 'music' | 'film' | 'all';
+
+// 크롤링 모드 및 옵션
+const CRAWL_MODE: CrawlMode = (process.env.CRAWL_MODE as CrawlMode) || 'popularity';
+const SEARCH_KEYWORD = process.env.SEARCH_KEYWORD || '';
+const CATEGORY: KickstarterCategory = (process.env.CATEGORY as KickstarterCategory) || 'all';
+
+// ============================================
 // 크롤링 설정
 // ============================================
 
 const CONFIG: CrawlConfig = {
-  headless: true,       // false: 브라우저 창 표시 (디버깅용)
+  headless: process.env.HEADLESS !== 'false',
   timeout: 60000,       // 60초 타임아웃
   delay: 3000,          // 요청 간 3초 대기 (차단 방지)
   retryCount: 3,        // 실패 시 재시도 횟수
-  maxProjects: 10,      // 한 번에 크롤링할 최대 프로젝트 수
+  maxProjects: parseInt(process.env.MAX_PRODUCTS || '10'),
+};
+
+// 카테고리 ID 매핑
+const CATEGORY_IDS: Record<KickstarterCategory, string> = {
+  technology: '16',
+  design: '7',
+  games: '12',
+  art: '1',
+  music: '14',
+  film: '11',
+  all: '',
 };
 
 // ============================================
@@ -185,22 +219,42 @@ class KickstarterCrawler {
   // Discover 페이지에서 프로젝트 URL 목록 가져오기
   // ============================================
 
-  async getProjectUrls(
-    category?: string,
-    sort: 'magic' | 'popularity' | 'newest' | 'end_date' | 'most_funded' = 'popularity'
-  ): Promise<string[]> {
+  async getProjectUrls(): Promise<string[]> {
     if (!this.page) throw new Error('브라우저가 초기화되지 않았습니다.');
 
-    let url = 'https://www.kickstarter.com/discover/advanced';
-    const params = new URLSearchParams();
+    let url: string;
+    
+    if (CRAWL_MODE === 'search' && SEARCH_KEYWORD) {
+      // 검색 모드
+      const encodedKeyword = encodeURIComponent(SEARCH_KEYWORD);
+      url = `https://www.kickstarter.com/discover/advanced?term=${encodedKeyword}&state=live&sort=popularity`;
+      console.log(`📦 Kickstarter 검색: "${SEARCH_KEYWORD}" 크롤링 시작...`);
+    } else {
+      // 일반 모드
+      url = 'https://www.kickstarter.com/discover/advanced';
+      const params = new URLSearchParams();
+      
+      if (CATEGORY !== 'all' && CATEGORY_IDS[CATEGORY]) {
+        params.append('category_id', CATEGORY_IDS[CATEGORY]);
+      }
+      params.append('sort', CRAWL_MODE === 'search' ? 'popularity' : CRAWL_MODE);
+      params.append('state', 'live');
+      
+      url += '?' + params.toString();
+      
+      const modeLabel = {
+        popularity: '인기순',
+        newest: '최신순',
+        end_date: '마감 임박순',
+        most_funded: '최다 모금순',
+        magic: '추천순',
+        search: '검색',
+      }[CRAWL_MODE];
+      
+      console.log(`📦 Kickstarter ${modeLabel} 크롤링 시작...`);
+    }
 
-    if (category) params.append('category_id', category);
-    params.append('sort', sort);
-    params.append('state', 'live');
-
-    url += '?' + params.toString();
-
-    console.log(`📂 프로젝트 목록 페이지: ${url}\n`);
+    console.log(`   🔗 접속 중: ${url.substring(0, 60)}...\n`);
 
     await this.page.goto(url, {
       waitUntil: 'networkidle2',
@@ -273,7 +327,6 @@ class KickstarterCrawler {
 
       // 페이지 타이틀과 URL에서 기본 정보 추출
       const pageTitle = await this.page.title();
-      const pageUrl = this.page.url();
 
       console.log(`   📄 페이지 타이틀: ${pageTitle}`);
 
@@ -691,6 +744,17 @@ async function main() {
   console.log('🎯 Kickstarter 크롤러');
   console.log('═'.repeat(60));
   console.log('');
+  console.log(`📋 설정:`);
+  console.log(`   - 크롤링 모드: ${CRAWL_MODE}`);
+  if (CRAWL_MODE === 'search') {
+    console.log(`   - 검색 키워드: ${SEARCH_KEYWORD}`);
+  }
+  if (CATEGORY !== 'all') {
+    console.log(`   - 카테고리: ${CATEGORY}`);
+  }
+  console.log(`   - 최대 프로젝트 수: ${CONFIG.maxProjects}`);
+  console.log(`   - Headless 모드: ${CONFIG.headless}`);
+  console.log('');
 
   const crawler = new KickstarterCrawler();
 
@@ -718,12 +782,10 @@ async function main() {
       }
     } else {
       // ============================================
-      // 방법 2: 인기 프로젝트 자동 수집
+      // 방법 2: 모드에 따른 프로젝트 자동 수집
       // ============================================
 
-      console.log('\n📂 인기 프로젝트 자동 수집 모드\n');
-
-      const projectUrls = await crawler.getProjectUrls(undefined, 'popularity');
+      const projectUrls = await crawler.getProjectUrls();
 
       let savedCount = 0;
       for (const url of projectUrls) {
@@ -751,4 +813,3 @@ async function main() {
 
 // 실행
 main();
-

@@ -26,6 +26,9 @@ const nextConfig: NextConfig = {
       { hostname: "cf.shopee.co.th" },
       { hostname: "down-th.img.susercontent.com" },
       { hostname: "f.shopee.co.th" },
+      // eBay 크롤링 이미지
+      { hostname: "i.ebayimg.com" },
+      { hostname: "thumbs.ebaystatic.com" },
     ],
   },
 };

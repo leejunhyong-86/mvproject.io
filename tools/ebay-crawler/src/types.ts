@@ -1,13 +1,12 @@
 /**
  * @file types.ts
- * @description Shopee Thailand 크롤러 타입 정의
+ * @description eBay 크롤러 타입 정의
  */
 
-// Shopee 상품 인터페이스
-export interface ShopeeProduct {
+// eBay 상품 인터페이스
+export interface EbayProduct {
   // 기본 정보
-  itemId: string;                  // Shopee 상품 ID
-  shopId: string;                  // 판매자 ID
+  itemId: string;                   // eBay 상품 고유 ID
   title: string;
   slug: string;
   description: string;
@@ -18,24 +17,30 @@ export interface ShopeeProduct {
   videoUrl: string | null;
   
   // 가격 정보
-  price: number;                   // 현재 가격 (THB)
-  originalPrice: number | null;    // 원래 가격 (THB)
-  priceKrw: number | null;         // 한화 환산 가격
-  currency: string;                // 'THB'
-  discountPercent: number | null;  // 할인율
+  price: number | null;             // 현재 가격 (USD)
+  originalPrice: number | null;     // 원래 가격 (USD)
+  priceKrw: number | null;          // 한화 환산 가격
+  currency: string;
+  
+  // 경매 정보 (경매 상품인 경우)
+  bidCount: number | null;          // 입찰 수
+  timeLeft: string | null;          // 남은 시간
+  isBuyItNow: boolean;              // 즉시 구매 가능 여부
   
   // 평점 및 리뷰
-  rating: number;                  // 별점 (1-5)
-  reviewCount: number;             // 리뷰 수
-  soldCount: number;               // 판매 수량 (Shopee 특화)
+  rating: number;                   // 판매자 평점 (1-5)
+  reviewCount: number;              // 리뷰/피드백 수
   
   // 카테고리 및 판매자
   category: string;
-  shopName: string;
-  shopLocation: string | null;     // 판매자 위치
+  condition: string | null;         // 상품 상태 (New, Used 등)
+  seller: string | null;
+  sellerFeedbackScore: number | null;
   
   // 배송 정보
+  shippingCost: string | null;      // 배송비
   freeShipping: boolean;
+  location: string | null;          // 판매자 위치
   
   // 메타 정보
   sourceUrl: string;
@@ -46,8 +51,9 @@ export interface ShopeeProduct {
 export interface CrawlConfig {
   maxProducts: number;
   headless: boolean;
-  dailyDiscoverUrl: string;
-  topProductsUrl: string;
+  searchQuery?: string;
+  categoryUrl?: string;
+  dealsUrl?: string;
 }
 
 // Supabase products 테이블 삽입 타입
@@ -60,12 +66,10 @@ export interface ProductInsert {
   original_price?: number | null;
   currency?: string;
   price_krw?: number | null;
-  discount_rate?: number | null;
   source_platform: string;
   source_url: string;
   external_rating?: number | null;
   external_review_count?: number;
-  purchase_count?: number;
   category_id?: string | null;
   tags?: string[];
   is_featured?: boolean;

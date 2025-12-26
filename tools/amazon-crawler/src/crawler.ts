@@ -2,16 +2,25 @@
  * @file crawler.ts
  * @description Amazon 상품 크롤러
  * 
- * Amazon 베스트셀러 또는 검색 결과에서 상품을 크롤링하여 Supabase에 저장합니다.
+ * Amazon에서 다양한 모드로 상품을 크롤링하여 Supabase에 저장합니다.
  * 
  * 주요 기능:
- * 1. Amazon 베스트셀러 상품 크롤링
- * 2. 상품 상세 정보 추출 (가격, 평점, 리뷰 수 등)
- * 3. 이미지 및 영상 URL 추출
- * 4. Supabase products 테이블에 자동 저장
+ * 1. 베스트셀러 크롤링
+ * 2. 신상품 크롤링
+ * 3. Movers & Shakers (인기 급상승) 크롤링
+ * 4. 키워드 검색 크롤링
+ * 5. 특정 카테고리 크롤링
+ * 
+ * 크롤링 모드 (CRAWL_MODE 환경변수):
+ * - bestsellers: 베스트셀러 (기본값)
+ * - new-releases: 신상품
+ * - movers-shakers: 인기 급상승 상품
+ * - search: 키워드 검색 (SEARCH_KEYWORD 필요)
  * 
  * 사용법:
  * - pnpm crawl (기본 베스트셀러 크롤링)
+ * - CRAWL_MODE=new-releases pnpm crawl
+ * - CRAWL_MODE=search SEARCH_KEYWORD="wireless earbuds" pnpm crawl
  * 
  * @dependencies
  * - puppeteer: 헤드리스 브라우저 자동화
@@ -27,12 +36,61 @@ import type { AmazonProduct, CrawlConfig, ProductInsert } from './types.js';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// 크롤링 모드 타입
+type CrawlMode = 'bestsellers' | 'new-releases' | 'movers-shakers' | 'search';
+
+// 카테고리 타입
+type AmazonCategory = 'electronics' | 'beauty' | 'home-garden' | 'fashion' | 'toys' | 'books' | 'all';
+
 // 크롤링 설정
 const config: CrawlConfig = {
   maxProducts: parseInt(process.env.MAX_PRODUCTS || '10'),
   headless: process.env.HEADLESS !== 'false',
-  // Amazon 베스트셀러 페이지들
   bestSellersUrl: 'https://www.amazon.com/gp/bestsellers/',
+};
+
+// 크롤링 모드 및 옵션
+const CRAWL_MODE: CrawlMode = (process.env.CRAWL_MODE as CrawlMode) || 'bestsellers';
+const SEARCH_KEYWORD = process.env.SEARCH_KEYWORD || '';
+const CATEGORY: AmazonCategory = (process.env.CATEGORY as AmazonCategory) || 'all';
+
+// 카테고리별 URL 매핑
+const CATEGORY_URLS: Record<AmazonCategory, { bestsellers: string; newReleases: string; moversShakers: string }> = {
+  electronics: {
+    bestsellers: 'https://www.amazon.com/Best-Sellers-Electronics/zgbs/electronics/',
+    newReleases: 'https://www.amazon.com/gp/new-releases/electronics/',
+    moversShakers: 'https://www.amazon.com/gp/movers-and-shakers/electronics/',
+  },
+  beauty: {
+    bestsellers: 'https://www.amazon.com/Best-Sellers-Beauty/zgbs/beauty/',
+    newReleases: 'https://www.amazon.com/gp/new-releases/beauty/',
+    moversShakers: 'https://www.amazon.com/gp/movers-and-shakers/beauty/',
+  },
+  'home-garden': {
+    bestsellers: 'https://www.amazon.com/Best-Sellers-Home-Kitchen/zgbs/home-garden/',
+    newReleases: 'https://www.amazon.com/gp/new-releases/home-garden/',
+    moversShakers: 'https://www.amazon.com/gp/movers-and-shakers/home-garden/',
+  },
+  fashion: {
+    bestsellers: 'https://www.amazon.com/Best-Sellers-Clothing-Shoes-Jewelry/zgbs/fashion/',
+    newReleases: 'https://www.amazon.com/gp/new-releases/fashion/',
+    moversShakers: 'https://www.amazon.com/gp/movers-and-shakers/fashion/',
+  },
+  toys: {
+    bestsellers: 'https://www.amazon.com/Best-Sellers-Toys-Games/zgbs/toys-and-games/',
+    newReleases: 'https://www.amazon.com/gp/new-releases/toys-and-games/',
+    moversShakers: 'https://www.amazon.com/gp/movers-and-shakers/toys-and-games/',
+  },
+  books: {
+    bestsellers: 'https://www.amazon.com/Best-Sellers-Books/zgbs/books/',
+    newReleases: 'https://www.amazon.com/gp/new-releases/books/',
+    moversShakers: 'https://www.amazon.com/gp/movers-and-shakers/books/',
+  },
+  all: {
+    bestsellers: 'https://www.amazon.com/gp/bestsellers/',
+    newReleases: 'https://www.amazon.com/gp/new-releases/',
+    moversShakers: 'https://www.amazon.com/gp/movers-and-shakers/',
+  },
 };
 
 // USD to KRW 환율 (대략적인 값, 실제로는 API 사용 권장)
@@ -102,17 +160,97 @@ async function setupPage(browser: Browser): Promise<Page> {
 }
 
 /**
- * Amazon 베스트셀러 카테고리에서 상품 URL 추출
+ * 모드별 URL 목록 생성
  */
-async function getBestSellerProductUrls(page: Page, maxProducts: number): Promise<string[]> {
-  console.log('📦 Amazon 베스트셀러 페이지 접속 중...');
+function getUrlsForMode(mode: CrawlMode, category: AmazonCategory): string[] {
+  switch (mode) {
+    case 'bestsellers':
+      if (category === 'all') {
+        return [
+          CATEGORY_URLS.electronics.bestsellers,
+          CATEGORY_URLS.beauty.bestsellers,
+          CATEGORY_URLS['home-garden'].bestsellers,
+        ];
+      }
+      return [CATEGORY_URLS[category].bestsellers];
+    
+    case 'new-releases':
+      if (category === 'all') {
+        return [
+          CATEGORY_URLS.electronics.newReleases,
+          CATEGORY_URLS.beauty.newReleases,
+          CATEGORY_URLS['home-garden'].newReleases,
+        ];
+      }
+      return [CATEGORY_URLS[category].newReleases];
+    
+    case 'movers-shakers':
+      if (category === 'all') {
+        return [
+          CATEGORY_URLS.electronics.moversShakers,
+          CATEGORY_URLS.beauty.moversShakers,
+          CATEGORY_URLS['home-garden'].moversShakers,
+        ];
+      }
+      return [CATEGORY_URLS[category].moversShakers];
+    
+    case 'search':
+      if (!SEARCH_KEYWORD) {
+        console.error('❌ SEARCH_KEYWORD 환경변수가 설정되지 않았습니다.');
+        return [];
+      }
+      const encodedKeyword = encodeURIComponent(SEARCH_KEYWORD);
+      return [
+        `https://www.amazon.com/s?k=${encodedKeyword}`,
+      ];
+    
+    default:
+      return [CATEGORY_URLS.all.bestsellers];
+  }
+}
+
+/**
+ * 페이지에서 상품 URL 추출
+ */
+async function extractProductUrls(page: Page): Promise<string[]> {
+  return await page.evaluate(() => {
+    const links: string[] = [];
+    const productElements = document.querySelectorAll('a.a-link-normal[href*="/dp/"]');
+    
+    productElements.forEach((el) => {
+      const href = el.getAttribute('href');
+      if (href && href.includes('/dp/')) {
+        // ASIN 추출하여 깔끔한 URL 생성
+        const asinMatch = href.match(/\/dp\/([A-Z0-9]{10})/);
+        if (asinMatch) {
+          links.push(`https://www.amazon.com/dp/${asinMatch[1]}`);
+        }
+      }
+    });
+    
+    // 중복 제거
+    return [...new Set(links)];
+  });
+}
+
+/**
+ * 상품 URL 수집 (모드별)
+ */
+async function getProductUrls(page: Page, maxProducts: number): Promise<string[]> {
+  const modeLabel = {
+    bestsellers: '베스트셀러',
+    'new-releases': '신상품',
+    'movers-shakers': '인기 급상승',
+    search: `검색: "${SEARCH_KEYWORD}"`,
+  }[CRAWL_MODE];
   
-  // Amazon 베스트셀러 - Electronics 카테고리 (예시)
-  const categoryUrls = [
-    'https://www.amazon.com/Best-Sellers-Electronics/zgbs/electronics/',
-    'https://www.amazon.com/Best-Sellers-Beauty/zgbs/beauty/',
-    'https://www.amazon.com/Best-Sellers-Home-Kitchen/zgbs/home-garden/',
-  ];
+  console.log(`📦 Amazon ${modeLabel} 크롤링 시작...`);
+  
+  const categoryUrls = getUrlsForMode(CRAWL_MODE, CATEGORY);
+  
+  if (categoryUrls.length === 0) {
+    return [];
+  }
   
   const productUrls: string[] = [];
   
@@ -120,6 +258,8 @@ async function getBestSellerProductUrls(page: Page, maxProducts: number): Promis
     if (productUrls.length >= maxProducts) break;
     
     try {
+      console.log(`   🔗 접속 중: ${categoryUrl.substring(0, 60)}...`);
+      
       await page.goto(categoryUrl, { 
         waitUntil: 'domcontentloaded',
         timeout: 30000 
@@ -128,28 +268,11 @@ async function getBestSellerProductUrls(page: Page, maxProducts: number): Promis
       // 잠시 대기 (봇 탐지 우회)
       await new Promise(r => setTimeout(r, 2000 + Math.random() * 2000));
       
-      // 상품 링크 추출
-      const urls = await page.evaluate(() => {
-        const links: string[] = [];
-        const productElements = document.querySelectorAll('a.a-link-normal[href*="/dp/"]');
-        
-        productElements.forEach((el) => {
-          const href = el.getAttribute('href');
-          if (href && href.includes('/dp/')) {
-            // ASIN 추출하여 깔끔한 URL 생성
-            const asinMatch = href.match(/\/dp\/([A-Z0-9]{10})/);
-            if (asinMatch) {
-              links.push(`https://www.amazon.com/dp/${asinMatch[1]}`);
-            }
-          }
-        });
-        
-        // 중복 제거
-        return [...new Set(links)];
-      });
+      const urls = await extractProductUrls(page);
       
       productUrls.push(...urls.slice(0, maxProducts - productUrls.length));
-      console.log(`   📋 ${categoryUrl.split('/').pop()} 카테고리에서 ${urls.length}개 상품 발견`);
+      const categoryName = categoryUrl.split('/').filter(Boolean).pop() || 'page';
+      console.log(`   📋 ${categoryName}에서 ${urls.length}개 상품 발견`);
       
     } catch (error) {
       console.error(`   ❌ 카테고리 크롤링 실패: ${categoryUrl}`);
@@ -364,6 +487,13 @@ async function saveToSupabase(
 async function main() {
   console.log('🚀 Amazon 크롤러 시작\n');
   console.log(`📋 설정:`);
+  console.log(`   - 크롤링 모드: ${CRAWL_MODE}`);
+  if (CRAWL_MODE === 'search') {
+    console.log(`   - 검색 키워드: ${SEARCH_KEYWORD}`);
+  }
+  if (CATEGORY !== 'all') {
+    console.log(`   - 카테고리: ${CATEGORY}`);
+  }
   console.log(`   - 최대 상품 수: ${config.maxProducts}`);
   console.log(`   - Headless 모드: ${config.headless}`);
   console.log('');
@@ -379,8 +509,8 @@ async function main() {
   console.log('✅ 브라우저 준비 완료\n');
   
   try {
-    // 베스트셀러에서 상품 URL 수집
-    const productUrls = await getBestSellerProductUrls(page, config.maxProducts);
+    // 상품 URL 수집
+    const productUrls = await getProductUrls(page, config.maxProducts);
     console.log(`\n📦 총 ${productUrls.length}개 상품 URL 수집 완료\n`);
     
     if (productUrls.length === 0) {
@@ -433,4 +563,3 @@ async function main() {
 
 // 실행
 main().catch(console.error);
-
