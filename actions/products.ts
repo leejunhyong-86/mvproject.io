@@ -378,7 +378,7 @@ export async function createProduct(
 
   revalidatePath('/admin/products');
   revalidatePath('/products');
-  
+
   return { success: true, productId: product.id };
 }
 
@@ -422,7 +422,7 @@ export async function updateProduct(
   revalidatePath('/admin/products');
   revalidatePath('/products');
   revalidatePath(`/products/${data.slug || ''}`);
-  
+
   return { success: true };
 }
 
@@ -450,7 +450,7 @@ export async function deleteProduct(
 
   revalidatePath('/admin/products');
   revalidatePath('/products');
-  
+
   return { success: true };
 }
 

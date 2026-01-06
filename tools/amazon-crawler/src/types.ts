@@ -10,34 +10,35 @@ export interface AmazonProduct {
   title: string;
   slug: string;
   description: string;
-  
+
   // 미디어
   thumbnailUrl: string;
   imageUrls: string[];
+  detailImages: string[];  // 상품 상세 페이지의 detail images (content-grid-wrapper 내 이미지들)
   videoUrl: string | null;
-  
+
   // 가격 정보
   price: number | null;            // 현재 가격 (USD)
   originalPrice: number | null;    // 원래 가격 (USD)
   priceKrw: number | null;         // 한화 환산 가격
   currency: string;
-  
+
   // 평점 및 리뷰
   rating: number;                  // 별점 (1-5)
   reviewCount: number;             // 리뷰 수
-  
+
   // 카테고리 및 판매자
   category: string;
   brand: string | null;
   seller: string | null;
-  
+
   // 배송 정보
   isPrime: boolean;
   deliveryInfo: string | null;
-  
+
   // 재고 상태
   availability: string;
-  
+
   // 메타 정보
   sourceUrl: string;
   crawledAt: Date;
@@ -70,5 +71,6 @@ export interface ProductInsert {
   tags?: string[];
   is_featured?: boolean;
   is_active?: boolean;
+  detail_images?: string[];
 }
 
