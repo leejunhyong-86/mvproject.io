@@ -43,24 +43,25 @@ export default async function LuckyDrawPage() {
           />
         </div>
 
+        {/* 뒤로가기 - 좌측 상단 고정 (반응형) */}
+        <Link
+          href="/"
+          className="fixed top-4 left-4 md:top-6 md:left-6 z-50 inline-flex items-center gap-2 text-amber-200 hover:text-white transition-colors bg-black/20 backdrop-blur-sm px-3 py-2 md:px-4 md:py-2 rounded-lg text-sm md:text-base"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span className="hidden sm:inline">홈으로 돌아가기</span>
+          <span className="sm:hidden">홈</span>
+        </Link>
+
         {/* 콘텐츠 */}
         <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
-          {/* 뒤로가기 */}
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-amber-200 hover:text-white mb-8 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            홈으로 돌아가기
-          </Link>
-
           {/* 제목 */}
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold text-[var(--color-purple-100)] mb-4">
             {event?.title?.replace(/^대항해\s*/, '') || '럭키드로우'}
           </h1>
 
-          {/* 설명 */}
-          <p className="text-xl text-amber-100 mb-8 max-w-2xl mx-auto">
+          {/* 설명 - 중앙 정렬 (반응형) */}
+          <p className="text-xl text-amber-100 mb-8 max-w-2xl mx-auto px-4 backdrop-blur-[12px] text-center">
             {event?.description || '바다 건너 온 특별한 경품! 단 200원으로 인기템을 겟 하는 방법!'}
           </p>
         </div>
