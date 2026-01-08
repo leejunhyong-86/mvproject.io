@@ -56,7 +56,10 @@ export default async function LuckyDrawPage() {
         {/* 콘텐츠 */}
         <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
           {/* 제목 */}
-          <h1 className="text-4xl md:text-5xl font-bold text-[var(--color-purple-100)] mb-4">
+          <h1 
+            className="text-4xl md:text-5xl font-bold text-[var(--color-blue-50)] mb-4 grid rotate-[360deg]"
+            style={{ fontFamily: '"Roboto", -apple-system, BlinkMacSystemFont, sans-serif' }}
+          >
             {event?.title?.replace(/^대항해\s*/, '') || '럭키드로우'}
           </h1>
 
