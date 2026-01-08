@@ -18,7 +18,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { getActiveLuckyDrawEvent } from '@/actions/lucky-draw';
-import { Gift, Anchor, ArrowLeft, Clock, Users, Award } from 'lucide-react';
+import { Gift, ArrowLeft, Clock, Users, Award } from 'lucide-react';
 
 export const metadata = {
   title: '럭키드로우 | 해외직구멀티샵',
@@ -35,23 +35,11 @@ export default async function LuckyDrawPage() {
         {/* 배경 */}
         <div className="absolute inset-0">
           <Image
-            src="/images/lucky-draw-bg.png"
-            alt="대항해시대 무역선"
+            src="/images/lucky-draw-port.png"
+            alt="대항해시대 포트 도시"
             fill
-            className="object-cover opacity-20"
+            className="object-cover"
             priority
-          />
-          <div 
-            className="absolute inset-0"
-            style={{
-              background: `
-                linear-gradient(135deg, 
-                  rgba(139, 115, 85, 0.95) 0%, 
-                  rgba(160, 140, 110, 0.9) 50%,
-                  rgba(139, 115, 85, 0.95) 100%
-                )
-              `,
-            }}
           />
         </div>
 
@@ -68,20 +56,13 @@ export default async function LuckyDrawPage() {
 
           {/* 제목 */}
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            {event?.title || '럭키드로우'}
+            {event?.title?.replace(/^대항해\s*/, '') || '럭키드로우'}
           </h1>
 
           {/* 설명 */}
           <p className="text-xl text-amber-100 mb-8 max-w-2xl mx-auto">
             {event?.description || '바다 건너 온 특별한 경품! 단 200원으로 인기템을 겟 하는 방법!'}
           </p>
-
-          {/* 장식 */}
-          <div className="flex justify-center gap-4 text-amber-300">
-            <Anchor className="w-6 h-6" />
-            <span className="text-2xl">⚓</span>
-            <Anchor className="w-6 h-6" />
-          </div>
         </div>
       </section>
 
