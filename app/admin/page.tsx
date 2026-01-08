@@ -9,6 +9,7 @@ import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClerkSupabaseClient } from '@/lib/supabase/server';
+import { isAdmin } from '@/lib/admin';
 import {
   Package,
   FolderTree,
@@ -25,7 +26,11 @@ export default async function AdminPage() {
     redirect('/sign-in');
   }
 
-  // TODO: 관리자 권한 확인 로직 추가
+  // 관리자 권한 확인
+  const adminStatus = await isAdmin(userId);
+  if (!adminStatus) {
+    redirect('/');
+  }
 
   const supabase = await createClerkSupabaseClient();
 

@@ -8,6 +8,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClerkSupabaseClient } from '@/lib/supabase/server';
+import { isAdmin } from '@/lib/admin';
 import { Plus, Edit, Star, Eye, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FilterImagesButton } from '@/components/admin/filter-images-button';
@@ -17,6 +18,12 @@ export default async function AdminProductsPage() {
 
   if (!userId) {
     redirect('/sign-in');
+  }
+
+  // 관리자 권한 확인
+  const adminStatus = await isAdmin(userId);
+  if (!adminStatus) {
+    redirect('/');
   }
 
   const supabase = await createClerkSupabaseClient();

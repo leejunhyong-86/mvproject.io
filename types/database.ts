@@ -351,6 +351,7 @@ export interface User {
   id: UUID;
   clerk_id: string;
   name: string;
+  role: 'admin' | 'user' | null;
   created_at: Timestamp;
 }
 

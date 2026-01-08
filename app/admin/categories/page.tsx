@@ -8,14 +8,22 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClerkSupabaseClient } from '@/lib/supabase/server';
+import { isAdmin } from '@/lib/admin';
 import { Plus, Edit, FolderTree } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DeleteCategoryButton } from '@/components/admin/delete-category-button';
 
 export default async function AdminCategoriesPage() {
   const { userId } = await auth();
 
   if (!userId) {
     redirect('/sign-in');
+  }
+
+  // 관리자 권한 확인
+  const adminStatus = await isAdmin(userId);
+  if (!adminStatus) {
+    redirect('/');
   }
 
   const supabase = await createClerkSupabaseClient();
@@ -105,6 +113,10 @@ export default async function AdminCategoriesPage() {
                         <Edit className="w-4 h-4" />
                       </Button>
                     </Link>
+                    <DeleteCategoryButton 
+                      categoryId={category.id} 
+                      categoryName={category.name}
+                    />
                   </div>
                 </div>
               ))}

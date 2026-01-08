@@ -7,6 +7,7 @@ import { auth } from '@clerk/nextjs/server';
 import { redirect, notFound } from 'next/navigation';
 import { getProductById } from '@/actions/products';
 import { getCategories } from '@/actions/categories';
+import { isAdmin } from '@/lib/admin';
 import { ProductForm } from '@/components/admin/product-form';
 
 interface EditProductPageProps {
@@ -31,6 +32,12 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
 
   if (!userId) {
     redirect('/sign-in');
+  }
+
+  // 관리자 권한 확인
+  const adminStatus = await isAdmin(userId);
+  if (!adminStatus) {
+    redirect('/');
   }
 
   const [product, categories] = await Promise.all([

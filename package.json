@@ -10,7 +10,8 @@
     "start": "node server.js",
     "lint": "next lint",
     "seed": "tsx scripts/seed.ts",
-    "filter-images": "tsx scripts/filter-detail-images.ts"
+    "filter-images": "tsx scripts/filter-detail-images.ts",
+    "set-admin": "tsx scripts/set-admin.ts"
   },
   "dependencies": {
     "@clerk/backend": "^1.33.1",

@@ -1,20 +1,20 @@
 /**
- * @file app/admin/products/new/page.tsx
- * @description 상품 등록 페이지
+ * @file app/admin/categories/new/page.tsx
+ * @description 카테고리 추가 페이지
  */
 
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
-import { getCategories } from '@/actions/categories';
+import { getAllCategories } from '@/actions/categories';
 import { isAdmin } from '@/lib/admin';
-import { ProductForm } from '@/components/admin/product-form';
+import { CategoryForm } from '@/components/admin/category-form';
 
 export const metadata = {
-  title: '상품 등록 | 관리자',
-  description: '새 상품을 등록합니다.',
+  title: '카테고리 추가 | 관리자',
+  description: '새 카테고리를 추가합니다.',
 };
 
-export default async function NewProductPage() {
+export default async function NewCategoryPage() {
   const { userId } = await auth();
 
   if (!userId) {
@@ -27,13 +27,14 @@ export default async function NewProductPage() {
     redirect('/');
   }
 
-  const categories = await getCategories();
+  // 모든 카테고리 조회 (상위 카테고리 선택용)
+  const categories = await getAllCategories();
 
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-8">상품 등록</h1>
-        <ProductForm 
+        <h1 className="text-2xl font-bold mb-8">카테고리 추가</h1>
+        <CategoryForm 
           categories={categories} 
           mode="create" 
         />
